@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 if (!process.env.MONGO_URI) {
-    throw new Error("Environment variable is not declared");
+    throw new Error("MONGO_URI is not declared in the environmental variable");
 }
 
 const config = {
