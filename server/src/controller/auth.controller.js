@@ -1,5 +1,7 @@
 import bcrypt from "bcrypt";
 import userModel from "../models/user.model.js";
+import jwt from "jsonwebtoken";
+import config from "../config/config.js";
 
 export const userRegister = async (req, res) => {
     try {
@@ -29,12 +31,23 @@ export const userRegister = async (req, res) => {
             password: hashedPassword,
         });
 
+        const token = jwt.sign(
+            {
+                id: newUser._id,
+            },
+            config.JWT_SECRET,
+            {
+                expiresIn: "1d",
+            },
+        );
+
         res.status(201).json({
             message: "New user has been created",
             newUser: {
                 email: newUser.email,
                 username: newUser.username,
             },
+            token,
         });
     } catch (err) {
         res.status(500).json({

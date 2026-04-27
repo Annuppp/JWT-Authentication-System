@@ -6,8 +6,13 @@ if (!process.env.MONGO_URI) {
     throw new Error("MONGO_URI is not declared in the environmental variable");
 }
 
+if (!process.env.JWT_SECRET) {
+    throw new error("JWT_SECRET is not declared in the environmental variable");
+}
+
 const config = {
     MONGO_URI: process.env.MONGO_URI,
+    JWT_SECRET: process.env.JWT_SECRET,
 };
 
 export default config;
