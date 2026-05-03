@@ -31,15 +31,9 @@ export const userRegister = async (req, res) => {
             password: hashedPassword,
         });
 
-        const token = jwt.sign(
-            {
-                id: newUser._id,
-            },
-            config.JWT_SECRET,
-            {
-                expiresIn: "1d",
-            },
-        );
+        const token = jwt.sign({ id: newUser.id }, config.JWT_SECRET, {
+            expiresIn: "1d",
+        });
 
         res.status(201).json({
             message: "New user has been created",
@@ -63,7 +57,7 @@ export const getMe = async (req, res) => {
 
         if (!token) {
             return res.status(401).json({
-                message: "could not find the token",
+                message: "Invalid token",
             });
         }
 
@@ -73,12 +67,12 @@ export const getMe = async (req, res) => {
 
         if (!user) {
             res.status(404).json({
-                message: "user not found",
+                message: "User could not be found",
             });
         }
 
-        res.status(200).json({
-            message: "user fetched successfully",
+        return res.status(200).json({
+            message: "User fetched successfully",
             user: {
                 username: user.username,
                 email: user.email,
@@ -86,8 +80,8 @@ export const getMe = async (req, res) => {
         });
     } catch (err) {
         res.status(400).json({
-            message: "Invalid token",
-            err: err.message,
+            message: "User could not be fetched",
+            error: err.message,
         });
     }
 };
