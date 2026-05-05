@@ -31,8 +31,31 @@ export const userRegister = async (req, res) => {
             password: hashedPassword,
         });
 
-        const token = jwt.sign({ id: newUser.id }, config.JWT_SECRET, {
-            expiresIn: "1d",
+        const accessToken = jwt.sign(
+            {
+                id: newUser._id,
+            },
+            config.JWT_SECRET,
+            {
+                expiresIn: "15m",
+            },
+        );
+
+        const refreshToken = jwt.sign(
+            {
+                id: newUser._id,
+            },
+            config.JWT_SECRET,
+            {
+                expiresIn: "7d",
+            },
+        );
+
+        res.cookie("refreshToken", refreshToken, {
+            httpOnly: true,
+            secure: true,
+            sameSite: "strict",
+            maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
         res.status(201).json({
@@ -41,7 +64,7 @@ export const userRegister = async (req, res) => {
                 email: newUser.email,
                 username: newUser.username,
             },
-            token,
+            accessToken,
         });
     } catch (err) {
         res.status(500).json({
