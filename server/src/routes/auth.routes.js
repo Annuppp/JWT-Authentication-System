@@ -9,4 +9,7 @@ authRouter.post("/register", authController.userRegister);
 // identifying user
 authRouter.get("/get-me", authController.getMe);
 
+// to generate new access token
+authRouter.get("/refresh-token", authController.refreshToken);
+
 export default authRouter;

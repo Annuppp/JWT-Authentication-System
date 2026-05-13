@@ -108,3 +108,30 @@ export const getMe = async (req, res) => {
         });
     }
 };
+
+export const refreshToken = async (req, res) => {
+    try {
+        const refreshToken = req.cookies.refreshToken;
+
+        if (!refreshToken) {
+            res.status(401).json({
+                message: "Refresh token not found",
+            });
+        }
+
+        const decoded = jwt.verify(refreshToken, config.JWT_SECRET);
+
+        const accessToken = jwt.sign({ id: decoded._id }, config.JWT_SECRET, {
+            expiresIn: "15m",
+        });
+
+        res.status(200).json({
+            message: "Access token refreshed successfully",
+            accessToken,
+        });
+    } catch (err) {
+        res.status(404).json({
+            message: "Error refreshing the accessToken",
+        });
+    }
+};
