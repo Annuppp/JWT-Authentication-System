@@ -89,7 +89,7 @@ export const getMe = async (req, res) => {
         const user = await userModel.findById(decoded.id);
 
         if (!user) {
-            res.status(404).json({
+            return res.status(404).json({
                 message: "User could not be found",
             });
         }
@@ -114,15 +114,30 @@ export const refreshToken = async (req, res) => {
         const refreshToken = req.cookies.refreshToken;
 
         if (!refreshToken) {
-            res.status(401).json({
+            return res.status(401).json({
                 message: "Refresh token not found",
             });
         }
 
         const decoded = jwt.verify(refreshToken, config.JWT_SECRET);
 
-        const accessToken = jwt.sign({ id: decoded._id }, config.JWT_SECRET, {
+        const accessToken = jwt.sign({ id: decoded.id }, config.JWT_SECRET, {
             expiresIn: "15m",
+        });
+
+        // for extra security, we generate new refresh token when refreshing the access token
+
+        const newRefreshToken = jwt.sign(
+            { id: decoded.id },
+            config.JWT_SECRET,
+            { expiresIn: "7d" },
+        );
+
+        res.cookie("refreshToken", newRefreshToken, {
+            httpOnly: true,
+            secure: true,
+            sameSite: "strict",
+            maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
         res.status(200).json({
@@ -130,7 +145,7 @@ export const refreshToken = async (req, res) => {
             accessToken,
         });
     } catch (err) {
-        res.status(404).json({
+        res.status(401).json({
             message: "Error refreshing the accessToken",
         });
     }
