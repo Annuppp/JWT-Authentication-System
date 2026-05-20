@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import userModel from "../models/user.model.js";
 import jwt from "jsonwebtoken";
 import config from "../config/config.js";
+import sessionModel from "../models/session.model.js";
 
 export const userRegister = async (req, res) => {
     try {
@@ -31,15 +32,7 @@ export const userRegister = async (req, res) => {
             password: hashedPassword,
         });
 
-        const accessToken = jwt.sign(
-            {
-                id: newUser._id,
-            },
-            config.JWT_SECRET,
-            {
-                expiresIn: "15m",
-            },
-        );
+        // creating refreshToken
 
         const refreshToken = jwt.sign(
             {
@@ -51,6 +44,30 @@ export const userRegister = async (req, res) => {
             },
         );
 
+        // hashing the refresh token
+        const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
+
+        // creating session
+        const session = await sessionModel.create({
+            user: newUser._id,
+            refreshTokenHash,
+            ip: req.ip,
+            userAgent: req.headers["user-agent"],
+        });
+
+        // creating access token
+        const accessToken = jwt.sign(
+            {
+                id: newUser._id,
+                sessionId: session._id,
+            },
+            config.JWT_SECRET,
+            {
+                expiresIn: "15m",
+            },
+        );
+
+        // storing refresh token in cookie
         res.cookie("refreshToken", refreshToken, {
             httpOnly: true,
             secure: true,
