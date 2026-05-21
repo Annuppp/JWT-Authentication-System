@@ -138,9 +138,15 @@ export const refreshToken = async (req, res) => {
 
         const decoded = jwt.verify(refreshToken, config.JWT_SECRET);
 
-        const accessToken = jwt.sign({ id: decoded.id }, config.JWT_SECRET, {
-            expiresIn: "15m",
-        });
+        const accessToken = jwt.sign(
+            {
+                id: decoded.id,
+            },
+            config.JWT_SECRET,
+            {
+                expiresIn: "15m",
+            },
+        );
 
         // for extra security, we generate new refresh token when refreshing the access token
 
