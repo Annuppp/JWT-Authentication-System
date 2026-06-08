@@ -12,4 +12,7 @@ authRouter.get("/get-me", authController.getMe);
 // to generate new access token
 authRouter.get("/refresh-token", authController.refreshToken);
 
+// logout
+authRouter.get("/logout", authController.logout);
+
 export default authRouter;

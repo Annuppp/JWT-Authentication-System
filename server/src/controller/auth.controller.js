@@ -173,3 +173,41 @@ export const refreshToken = async (req, res) => {
         });
     }
 };
+
+export const logout = async (req, res) => {
+    try {
+        const refreshToken = req.cookies.refreshToken;
+
+        if (!refreshToken) {
+            return res.status(400).json({
+                message: "Refresh token not found",
+            });
+        }
+
+        const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
+
+        const session = await sessionModel.findOne({
+            refreshTokenHash,
+            revoked: false,
+        });
+
+        if (!session) {
+            return res.status(400).json({
+                message: "Invalid refresh token",
+            });
+        }
+
+        session.revoked = true;
+        await session.save();
+
+        res.clearCookie("refreshToken");
+
+        res.status(200).json({
+            message: "Logged out successfully",
+        });
+    } catch (err) {
+        res.status(400).json({
+            message: "Error logging out",
+        });
+    }
+};
