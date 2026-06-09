@@ -1,7 +1,10 @@
 import userModel from "../models/user.models.js";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import config from "../config/config.js";
+import sessionModel from "../models/session.model.js";
+import { ref } from "process";
 
 export const registerUser = async (req, res) => {
     try {
@@ -54,9 +57,22 @@ export const registerUser = async (req, res) => {
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
+        const refreshTokenHash = crypto
+            .createHash("sha256")
+            .update(refreshToken)
+            .digest("hex");
+
+        const session = await sessionModel.create({
+            user: newUser._id,
+            refreshTokenHash,
+            ip: req.ip,
+            userAgent: req.headers["user-agent"],
+        });
+
         const accessToken = jwt.sign(
             {
                 id: newUser._id,
+                sessionID: session._id,
             },
             config.JWT_SECRET,
             {
@@ -121,17 +137,39 @@ export const refreshToken = async (req, res) => {
 
         if (!refreshToken) {
             return res.status(404).json({
-                message: "Refresh token not found",
+                message: "refreshToken not found",
             });
         }
+
+        const refreshTokenHash = crypto
+            .createHash("sha256")
+            .update(refreshToken)
+            .digest("hex");
 
         const decoded = jwt.verify(refreshToken, config.JWT_SECRET);
 
         const user = await userModel.findById(decoded.id);
 
+        if (!user) {
+            return res.status(400).json({
+                message: "Invalid refresh Token",
+            });
+        }
+
+        const session = await sessionModel.findOne({
+            refreshTokenHash,
+            revoked: false,
+        });
+
+        if (!session) {
+            return res.status(401).json({
+                message: "Invalid refresh token",
+            });
+        }
+
         const accessToken = jwt.sign(
             {
-                id: decoded.id,
+                id: user._id,
             },
             config.JWT_SECRET,
             {
@@ -141,13 +179,21 @@ export const refreshToken = async (req, res) => {
 
         const newRefreshToken = jwt.sign(
             {
-                id: decoded.id,
+                id: user._id,
             },
             config.JWT_SECRET,
             {
                 expiresIn: "7d",
             },
         );
+
+        const newRefreshTokenHash = crypto
+            .createHash("sha256")
+            .update(newRefreshToken)
+            .digest("hex");
+
+        session.refreshTokenHash = newRefreshTokenHash;
+        await session.save();
 
         res.cookie("refreshToken", newRefreshToken, {
             httpOnly: true,
@@ -156,15 +202,59 @@ export const refreshToken = async (req, res) => {
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
-        res.status(201).json({
-            message: "Successfully created new token",
-            user,
+        res.status(200).json({
+            message: "Rotated tokens successfully",
             accessToken,
         });
     } catch (err) {
-        return res.status(400).json({
-            message: "Error generating the tokens",
+        res.status(400).json({
+            message: "Error rotating the tokens",
             error: err.message,
+        });
+    }
+};
+
+export const logout = async (req, res) => {
+    try {
+        const refreshToken = req.cookie.refreshToken;
+
+        if (!refreshToken) {
+            return res.status(401).json({
+                message: "Refresh Token not found",
+            });
+        }
+
+        const refreshTokenHash = crypto
+            .createHash("sha256")
+            .update(refreshToken)
+            .digest("hex");
+
+        const session = await sessionModel.findOne({
+            refreshTokenHash,
+            revoked: false,
+        });
+
+        if (!session) {
+            return res.status(400).json({
+                message: "Invalid refresh token",
+            });
+        }
+
+        session.revoked = true;
+        await session.save();
+
+        res.clearCookie("refreshToken", {
+            httpOnly: true,
+            secure: true,
+            sameSite: "strict",
+        });
+
+        res.status(200).json({
+            message: "Logged out successfully",
+        });
+    } catch (err) {
+        res.status(400).json({
+            message: "Error logging out ",
         });
     }
 };
